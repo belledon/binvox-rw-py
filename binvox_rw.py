@@ -238,17 +238,19 @@ def write(voxel_model, fp):
     Doesn't check if the model is 'sane'.
 
     """
+
+    int_data = voxel_model.data.astype(int)
     if voxel_model.data.ndim==2:
         # TODO avoid conversion to dense
-        dense_voxel_data = sparse_to_dense(voxel_model.data, voxel_model.dims)
+        dense_voxel_data = sparse_to_dense(int_data, voxel_model.dims)
     else:
-        dense_voxel_data = voxel_model.data
+        dense_voxel_data = int_data
 
-    fp.write('#binvox 1\n')
-    fp.write('dim '+' '.join(map(str, voxel_model.dims))+'\n')
-    fp.write('translate '+' '.join(map(str, voxel_model.translate))+'\n')
-    fp.write('scale '+str(voxel_model.scale)+'\n')
-    fp.write('data\n')
+    fp.write('#binvox 1\n'.encode())
+    fp.write('dim {}\n'.format(' '.join(map(str, voxel_model.dims))).encode())
+    fp.write('translate {}\n'.format(' '.join(map(str, voxel_model.translate))).encode())
+    fp.write('scale {0:d}\n'.format(int(voxel_model.scale)).encode())
+    fp.write('data\n'.encode())
     if not voxel_model.axis_order in ('xzy', 'xyz'):
         raise ValueError('Unsupported voxel model axis order')
 
@@ -256,7 +258,7 @@ def write(voxel_model, fp):
         voxels_flat = dense_voxel_data.flatten()
     elif voxel_model.axis_order=='xyz':
         voxels_flat = np.transpose(dense_voxel_data, (0, 2, 1)).flatten()
-
+        # voxels_flat = dense_voxel_data.flatten()
     # keep a sort of state machine for writing run length encoding
     state = voxels_flat[0]
     ctr = 0
@@ -265,19 +267,20 @@ def write(voxel_model, fp):
             ctr += 1
             # if ctr hits max, dump
             if ctr==255:
-                fp.write(chr(state))
-                fp.write(chr(ctr))
+                fp.write(bytearray([state]))
+                fp.write(bytearray([ctr]))
                 ctr = 0
         else:
             # if switch state, dump
-            fp.write(chr(state))
-            fp.write(chr(ctr))
+            fp.write(bytearray([state]))
+            fp.write(bytearray([ctr]))
             state = c
             ctr = 1
     # flush out remainders
     if ctr > 0:
-        fp.write(chr(state))
-        fp.write(chr(ctr))
+        fp.write(bytearray([state]))
+        fp.write(bytearray([ctr]))    
+
 
 if __name__ == '__main__':
     import doctest
